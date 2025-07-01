@@ -8,7 +8,7 @@ ENV N8N_PORT=5678
 ENV N8N_HOST=0.0.0.0
 
 # Copy workflows and entrypoint script
-COPY workflows /workflows
+# COPY workflows /workflows
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
