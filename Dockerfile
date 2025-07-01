@@ -9,12 +9,12 @@ ENV N8N_HOST=0.0.0.0
 
 # Copy workflows and entrypoint script
 # COPY workflows /workflows
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY entrypoint.sh /home/node/entrypoint.sh
+RUN chmod +x /home/node/entrypoint.sh
+
+ENTRYPOINT ["/home/node/entrypoint.sh"]
 
 # VOLUME /home/node/.n8n
 
 EXPOSE 5678
-
-ENTRYPOINT ["/entrypoint.sh"]
 
