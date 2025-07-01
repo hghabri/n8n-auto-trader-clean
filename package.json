@@ -1,0 +1,9 @@
+{
+  "name": "n8n-auto-trader-clean",
+  "version": "1.0.0",
+  "description": "Automated trading bot using n8n with Binance and Telegram integration",
+  "scripts": {
+    "start": "n8n"
+  }
+}
+
