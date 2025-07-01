@@ -12,7 +12,7 @@ COPY workflows /workflows
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-VOLUME /home/node/.n8n
+# VOLUME /home/node/.n8n
 
 EXPOSE 5678
 
