@@ -7,3 +7,4 @@ This is a Dockerized `n8n` project designed for automated crypto trading with:
 
 Deploy using Railway.
 
+# Redeploy trigger
