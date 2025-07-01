@@ -1,0 +1,630 @@
+{
+  "name": "multi-timeframe EIGEN/USDT trading bot",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://api.binance.com/api/v3/klines?symbol=EIGENUSDT&interval=5m&limit=100",
+        "options": {}
+      },
+      "name": "Fetch 5m",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        -540
+      ],
+      "id": "55337799-a40c-4dad-b6c3-589d96147a61"
+    },
+    {
+      "parameters": {
+        "url": "https://api.binance.com/api/v3/klines?symbol=EIGENUSDT&interval=15m&limit=100",
+        "options": {}
+      },
+      "name": "Fetch 15m",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        -340
+      ],
+      "id": "1117dcca-47cf-4062-a5c9-165862271861"
+    },
+    {
+      "parameters": {
+        "url": "https://api.binance.com/api/v3/klines?symbol=EIGENUSDT&interval=30m&limit=100",
+        "options": {}
+      },
+      "name": "Fetch 30m",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        -140
+      ],
+      "id": "6afb66c8-3701-41bb-b9f6-144716a3ad16"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a professional crypto day trader.\n\nYou are given recent OHLCV data (Open, High, Low, Close, Volume) for the past 100 candles from 3 timeframes:\n- 5-minute\n- 15-minute\n- 30-minute\n\nLatest price (from 5-min chart): {{ $json.t5.close }}\n\nAnalyze them using technical indicators like:\n- Stochastic RSI (oversold/overbought)\n- Bollinger Bands (price at upper/lower band)\n- Volume spikes or drops\n- Short-term vs long-term trend alignment\n\nConsider this is for **quick intraday trading**, not long-term holds.\n\nBased on this data, answer:\n- Should we BUY, SELL, or WAIT?\n\n## Respond only in the following JSON format:\n```json\n{\n  \"action\": \"buy\" | \"sell\" | \"wait\",\n  \"price\": {{ $json.t5.close }},\n  \"reason\": \"Short explanation (e.g. Stoch RSI on all TFs is oversold and price touched lower BB)\"\n}\n",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "name": "LLM Multi-Timeframe Decision",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        540,
+        -340
+      ],
+      "id": "00c3fae2-efd3-47ca-a623-8f7f495956b3"
+    },
+    {
+      "parameters": {
+        "url": "https://flaskbotapi.up.railway.app/state",
+        "options": {}
+      },
+      "name": "Get Bot State",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        916,
+        -265
+      ],
+      "id": "6ad919ac-da71-4021-95da-4cfdae6b5997"
+    },
+    {
+      "parameters": {
+        "operation": "order",
+        "symbol": "EIGENUSDT",
+        "quantity": "={{ $json.quantity }}",
+        "type": "MARKET"
+      },
+      "name": "Buy Order",
+      "type": "n8n-nodes-binance-trade.binance",
+      "typeVersion": 1,
+      "position": [
+        2236,
+        -440
+      ],
+      "id": "ea3e7449-d9be-4279-8f84-33d60edcefd5",
+      "credentials": {
+        "binanceApi": {
+          "id": "4o3L0LXrccpf8ytX",
+          "name": "Binance account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "order",
+        "side": "SELL",
+        "symbol": "EIGENUSDT",
+        "quantity": "={{ $json.trade_amount / $json.price }}",
+        "type": "MARKET"
+      },
+      "name": "Sell Order",
+      "type": "n8n-nodes-binance-trade.binance",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        -240
+      ],
+      "id": "81e98f0c-fe6d-4766-a04c-7a5313caa2b3",
+      "credentials": {
+        "binanceApi": {
+          "id": "4o3L0LXrccpf8ytX",
+          "name": "Binance account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "buy_price",
+              "value": "={{ $json.price }}"
+            },
+            {
+              "name": "quantity",
+              "value": "={{ $json.trade_amount / $json.price }}"
+            },
+            {
+              "name": "buy_time",
+              "value": "={{ $now }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Record Buy Info",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2456,
+        -440
+      ],
+      "id": "a945892b-f70d-4690-935b-f6bae52f9223"
+    },
+    {
+      "parameters": {
+        "chatId": "6259124403",
+        "text": "✅ Bought EIGEN/USDT\nPrice: {{$json.price}}\nAmount: {{$json.trade_amount}}\nReason: {{$json.reason}}",
+        "additionalFields": {}
+      },
+      "name": "Telegram Buy Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2676,
+        -440
+      ],
+      "id": "1308d642-6fee-4f56-95b7-f377b2548b11",
+      "webhookId": "aa23ac23-908b-407c-8d84-f774c9fceb00",
+      "credentials": {
+        "telegramApi": {
+          "id": "V98jkaznChLZ1G2B",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6259124403",
+        "text": "🚨 Sold EIGEN/USDT\nPrice: {{$json.price}}\nAmount: {{$json.trade_amount}}\nReason: {{$json.reason}}",
+        "additionalFields": {}
+      },
+      "name": "Telegram Sell Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2236,
+        -240
+      ],
+      "id": "fccd11ae-7b67-4b4b-9570-d7b310afc1ce",
+      "webhookId": "2acf4af1-e425-454f-b6be-f338251ca6ae",
+      "credentials": {
+        "telegramApi": {
+          "id": "V98jkaznChLZ1G2B",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "mistralai/mixtral-8x7b-instruct",
+        "options": {
+          "responseFormat": "json_object"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        568,
+        -120
+      ],
+      "id": "eeb8f42f-973d-499a-93fe-926e037e4709",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "qp2OV0iyGOfbLEgs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"action\": { \"type\": \"string\" },\n    \"price\": { \"type\": \"number\" },\n    \"reason\": { \"type\": \"string\" }\n  },\n  \"required\": [\"action\"]\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        -120
+      ],
+      "id": "1fae9571-57c2-4cd6-9657-40637d0f4ae3",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Simulate checking if a position is open. In reality, you'd query Binance.\nreturn [{ json: { ...$json, position: 'none' } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1576,
+        -340
+      ],
+      "id": "bb903686-fa44-4ba2-9db6-30104792ece2",
+      "name": "Check Position"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "buy",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6cb73c95-bc14-4ab1-b0d6-fe36563a5980"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b82b5262-44fe-461b-bbf7-ea9b526d052a",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "sell",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1796,
+        -340
+      ],
+      "id": "918ab648-01cd-46fa-8f70-399a17994e5d",
+      "name": "Buy or Sell?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const llm = $input.all().find(i => i.json?.output?.action);\nconst state = $input.all().find(i => i.json?.bot_active);\n\nif (!llm || !state) return [];\n\nconst { action, price, reason } = llm.json.output;\nconst botState = state.json;\n\nif (!botState.bot_active || action === 'wait') {\n  return [];\n}\n\nreturn [{\n  json: {\n    action,\n    reason,\n    price,\n    trade_amount: botState.trade_amount,\n    stop_after_sell: botState.stop_after_sell\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1356,
+        -340
+      ],
+      "id": "cfc18361-7551-41d8-810e-3e74f74b0899",
+      "name": "Filter Final Action"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction computeIndicators(data) {\n  const closes = data.map(i => parseFloat(i[4]));\n  const volumes = data.map(i => parseFloat(i[5]));\n  const period = 20;\n  const slice = closes.slice(-period);\n  const avg = slice.reduce((a,b) => a + b) / period;\n  const std = Math.sqrt(slice.map(x => Math.pow(x - avg, 2)).reduce((a,b) => a + b) / period);\n  const stochRSI = (() => {\n    const rsi = [];\n    for (let i = 14; i < closes.length; i++) {\n      const s = closes.slice(i - 14, i);\n      const max = Math.max(...s);\n      const min = Math.min(...s);\n      const lastClose = closes[i];\n      const stoch = (lastClose - min) / (max - min) * 100;\n      rsi.push(stoch);\n    }\n    return rsi[rsi.length - 1];\n  })();\n\n  const currentVolume = volumes[volumes.length - 1];\n  const avgVolume = volumes.slice(-20).reduce((a,b) => a + b) / 20;\n\n  return {\n    close: closes[closes.length - 1],\n    upperBB: avg + 2 * std,\n    lowerBB: avg - 2 * std,\n    middleBB: avg,\n    stochRSI,\n    currentVolume,\n    avgVolume\n  };\n}\n\nreturn [{\n  json: {\n    t5: computeIndicators($items(\"Fetch 5m\")[0].json),\n    t15: computeIndicators($items(\"Fetch 15m\")[0].json),\n    t30: computeIndicators($items(\"Fetch 30m\")[0].json)\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -340
+      ],
+      "id": "82c31cbc-acc6-4a1a-9982-ed9e46346faf",
+      "name": "Compute All Timeframes"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        100,
+        -340
+      ],
+      "id": "88425d55-419e-4079-9978-16fdaffae6b4",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -340,
+        -340
+      ],
+      "id": "072cc9b5-14f7-4781-9e39-d5afc0a821e4",
+      "name": "Schedule Trigger",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1136,
+        -340
+      ],
+      "id": "1ce1fe25-f0c4-43cf-8066-0012a574b8f4",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const price = $json.price;\nconst tradeAmount = $json.trade_amount;\n\nconst quantity = Math.floor((tradeAmount / price) * 100) / 100;  // rounds down to 2 decimals\n\nreturn [{\n  json: {\n    ...$json,\n    quantity: quantity\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        -440
+      ],
+      "id": "b24d0a5d-98e2-48eb-a020-ca8d0fd8ab96",
+      "name": "Round Quantity"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Fetch 5m": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch 15m": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Fetch 30m": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "LLM Multi-Timeframe Decision": {
+      "main": [
+        [
+          {
+            "node": "Get Bot State",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Bot State": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Buy Order": {
+      "main": [
+        [
+          {
+            "node": "Record Buy Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Buy Info": {
+      "main": [
+        [
+          {
+            "node": "Telegram Buy Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sell Order": {
+      "main": [
+        [
+          {
+            "node": "Telegram Sell Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM Multi-Timeframe Decision",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "LLM Multi-Timeframe Decision",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Position": {
+      "main": [
+        [
+          {
+            "node": "Buy or Sell?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buy or Sell?": {
+      "main": [
+        [
+          {
+            "node": "Round Quantity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sell Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Final Action": {
+      "main": [
+        [
+          {
+            "node": "Check Position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute All Timeframes": {
+      "main": [
+        [
+          {
+            "node": "LLM Multi-Timeframe Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Compute All Timeframes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch 5m",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch 15m",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch 30m",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Filter Final Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Round Quantity": {
+      "main": [
+        [
+          {
+            "node": "Buy Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bdfbfd96-6238-4c83-8a37-f0463be1177e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "db19d4d493d7721275b8a1f8b2235b52e9f94c190f3a7d691f08a55e8bac4426"
+  },
+  "id": "Ce7vQzlRCnyqPUGK",
+  "tags": []
+}

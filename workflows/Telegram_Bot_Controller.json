@@ -1,0 +1,116 @@
+{
+  "name": "Telegram Bot Controller",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tg-control",
+        "options": {}
+      },
+      "name": "Telegram Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "tg-control-id",
+      "id": "a5ea7ab9-28f4-4832-b41d-c9aebddec00e"
+    },
+    {
+      "parameters": {
+        "functionCode": "\nconst text = $json.body.message.text.toLowerCase();\nconst amountMatch = text.match(/\\d+(\\.\\d+)?/);\nlet payload = {};\nlet action = '';\n\nif (text.includes('/start')) {\n  payload.bot_active = true;\n  action = 'Bot started';\n}\nelse if (text.includes('/stop now')) {\n  payload.bot_active = false;\n  action = 'Bot stopped and immediate sell triggered';\n}\nelse if (text.includes('/stop after sell')) {\n  payload.bot_active = false;\n  payload.stop_after_sell = true;\n  action = 'Bot will stop after current position closes';\n}\nelse if (text.includes('/set amount') && amountMatch) {\n  payload.trade_amount = parseFloat(amountMatch[0]);\n  action = `Trade amount set to $${payload.trade_amount}`;\n}\nelse if (text.includes('/increase') && amountMatch) {\n  payload.adjustment = parseFloat(amountMatch[0]);\n  action = `Increase trade amount by $${payload.adjustment}`;\n}\nelse if (text.includes('/decrease') && amountMatch) {\n  payload.adjustment = -parseFloat(amountMatch[0]);\n  action = `Decrease trade amount by $${-payload.adjustment}`;\n}\nelse {\n  action = 'Unknown command';\n}\n\nreturn [{ json: { payload, action, raw_text: text } }];\n"
+      },
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        200,
+        0
+      ],
+      "id": "5720025f-c129-43f1-a4da-407ec24d1b46"
+    },
+    {
+      "parameters": {
+        "url": "https://flaskbotapi.up.railway.app/state",
+        "options": {}
+      },
+      "name": "Update Flask State",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        400,
+        0
+      ],
+      "id": "961daa50-6252-4304-a8c9-938a85710f0d"
+    },
+    {
+      "parameters": {
+        "chatId": "6259124403",
+        "text": "✅ {{$json.action}}",
+        "additionalFields": {}
+      },
+      "name": "Send Telegram Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        600,
+        0
+      ],
+      "id": "bc394644-61e8-490d-b567-1e95c8fbfabe",
+      "webhookId": "45c285ea-1130-4dd1-b263-b8da83b5e489",
+      "credentials": {
+        "telegramApi": {
+          "id": "V98jkaznChLZ1G2B",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Update Flask State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Flask State": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1e4e9c0d-e216-425a-b1ed-ffbf659a4e0c",
+  "meta": {
+    "instanceId": "db19d4d493d7721275b8a1f8b2235b52e9f94c190f3a7d691f08a55e8bac4426"
+  },
+  "id": "F2P0v2sKSjXMtp8x",
+  "tags": []
+}
